@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>변형증강체스 - 기본판</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #16120e;
+    --panel: #1e1811;
+    --light-sq: #e9dfc6;
+    --dark-sq: #4a3324;
+    --accent: #7fa889;
+    --accent-dim: #4f6a58;
+    --warn: #c1502e;
+    --ivory: #ede4d3;
+    --taupe: #a89a83;
+    --line: #33291d;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--ivory);
+    font-family: 'IBM Plex Mono', monospace;
+    min-height: 100%;
+  }
+
+  .wrap {
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 20px 14px 40px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 14px;
+  }
+
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 650;
+    font-size: 26px;
+    letter-spacing: 0.01em;
+    margin: 0 0 2px;
+    color: var(--ivory);
+  }
+
+  .subtitle {
+    font-size: 12px;
+    color: var(--taupe);
+    letter-spacing: 0.04em;
+  }
+
+  .tray {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 28px;
+    font-size: 20px;
+    padding: 0 4px;
+    color: var(--taupe);
+    letter-spacing: 2px;
+  }
+
+  .tray span.piece-glyph { color: var(--taupe); }
+
+  .status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 10px 0;
+    padding: 10px 12px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 13px;
+    letter-spacing: 0.03em;
+  }
+
+  .turn-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--ivory);
+    border: 1px solid #000;
+    flex-shrink: 0;
+  }
+  .turn-dot.black { background: #16120e; border-color: var(--taupe); }
+
+  .status-bar.check { border-color: var(--warn); color: var(--warn); }
+
+  #board {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border: 3px solid var(--line);
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+  }
+
+  .sq {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(22px, 7vw, 40px);
+    user-select: none;
+    cursor: pointer;
+  }
+  .sq.light { background: var(--light-sq); }
+  .sq.dark { background: var(--dark-sq); }
+
+  .sq .piece {
+    line-height: 1;
+    transform: translateY(-2%);
+  }
+  .sq .piece.white { color: #f7f2e6; text-shadow: 0 1px 0 #8a7a54, 0 0 3px rgba(0,0,0,0.4); }
+  .sq .piece.black { color: #17130d; text-shadow: 0 1px 0 rgba(255,255,255,0.08); }
+
+  .sq.selected::after {
+    content: "";
+    position: absolute;
+    inset: 3px;
+    border: 2px solid var(--accent);
+    border-radius: 3px;
+    pointer-events: none;
+  }
+
+  .sq.legal-move::before {
+    content: "";
+    position: absolute;
+    width: 22%;
+    height: 22%;
+    border-radius: 50%;
+    background: var(--accent-dim);
+    opacity: 0.85;
+    pointer-events: none;
+  }
+
+  .sq.legal-capture::after {
+    content: "";
+    position: absolute;
+    inset: 8%;
+    border: 3px solid var(--warn);
+    border-radius: 50%;
+    opacity: 0.8;
+    pointer-events: none;
+  }
+
+  .sq.last-move { box-shadow: inset 0 0 0 999px rgba(127, 168, 137, 0.18); }
+
+  .coords {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 4px 0;
+    font-size: 10px;
+    color: var(--taupe);
+    letter-spacing: 0.1em;
+  }
+
+  .controls {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  button {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.03em;
+    padding: 12px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--ivory);
+    cursor: pointer;
+    flex: 1;
+  }
+  button:active { transform: translateY(1px); }
+  button.primary { background: var(--accent-dim); border-color: var(--accent); color: #f4fff7; }
+
+  .movelog {
+    margin-top: 16px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+    max-height: 120px;
+    overflow-y: auto;
+    color: var(--taupe);
+    line-height: 1.6;
+  }
+  .movelog b { color: var(--ivory); font-weight: 500; }
+
+  /* 프로모션 / 종료 모달 */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 8, 6, 0.72);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    padding: 20px;
+  }
+  .overlay.show { display: flex; }
+
+  .modal {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 22px;
+    text-align: center;
+    max-width: 340px;
+    width: 100%;
+  }
+  .modal h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 20px;
+    margin: 0 0 14px;
+  }
+  .promo-options {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 4px;
+  }
+  .promo-options button {
+    font-size: 28px;
+    padding: 14px 0;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>변형증강체스</h1>
+      <div class="subtitle">기본 체스판 — 탭해서 이동</div>
+    </header>
+
+    <div class="tray" id="capturedByBlack"></div>
+
+    <div class="status-bar" id="statusBar">
+      <span class="turn-dot" id="turnDot"></span>
+      <span id="statusText">백(White) 차례</span>
+    </div>
+
+    <div id="board"></div>
+    <div class="coords" id="fileCoords"></div>
+
+    <div class="tray" id="capturedByWhite"></div>
+
+    <div class="controls">
+      <button class="primary" id="newGameBtn">새 게임</button>
+      <button id="undoBtn">한 수 무르기</button>
+    </div>
+
+    <div class="movelog" id="moveLog"></div>
+  </div>
+
+  <div class="overlay" id="promoOverlay">
+    <div class="modal">
+      <h2>승진할 기물을 선택하세요</h2>
+      <div class="promo-options" id="promoOptions"></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="endOverlay">
+    <div class="modal">
+      <h2 id="endTitle">게임 종료</h2>
+      <p id="endDesc" style="color: var(--taupe); font-size: 13px; margin: 0 0 16px;"></p>
+      <button class="primary" id="endNewGameBtn">새 게임 시작</button>
+    </div>
+  </div>
+
+<script>
+/* =========================================================
+   engine.js 내용을 그대로 인라인으로 포함 (별도 파일 없이 단일 HTML로 동작)
+   ========================================================= */
+const WHITE = "w", BLACK = "b";
+
+function createInitialBoard() {
+  const back = ["r", "n", "b", "q", "k", "b", "n", "r"];
+  const board = Array.from({ length: 8 }, () => Array(8).fill(null));
+  for (let c = 0; c < 8; c++) {
+    board[0][c] = { type: back[c], color: BLACK, moved: false };
+    board[1][c] = { type: "p", color: BLACK, moved: false };
+    board[6][c] = { type: "p", color: WHITE, moved: false };
+    board[7][c] = { type: back[c], color: WHITE, moved: false };
+  }
+  return board;
+}
+
+function inBounds(r, c) { return r >= 0 && r < 8 && c >= 0 && c < 8; }
+function cloneBoard(board) { return board.map((row) => row.map((p) => (p ? { ...p } : null))); }
+
+function slideMoves(board, r, c, directions) {
+  const piece = board[r][c];
+  const moves = [];
+  for (const [dr, dc] of directions) {
+    let nr = r + dr, nc = c + dc;
+    while (inBounds(nr, nc)) {
+      const target = board[nr][nc];
+      if (!target) { moves.push([nr, nc]); }
+      else { if (target.color !== piece.color) moves.push([nr, nc]); break; }
+      nr += dr; nc += dc;
+    }
+  }
+  return moves;
+}
+
+const BISHOP_DIRS = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+const ROOK_DIRS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+const QUEEN_DIRS = [...BISHOP_DIRS, ...ROOK_DIRS];
+const KNIGHT_OFFSETS = [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]];
+
+function pseudoLegalMoves(board, r, c) {
+  const piece = board[r][c];
+  if (!piece) return [];
+  switch (piece.type) {
+    case "p": {
+      const dir = piece.color === WHITE ? -1 : 1;
+      const startRow = piece.color === WHITE ? 6 : 1;
+      const moves = [];
+      if (inBounds(r + dir, c) && !board[r + dir][c]) {
+        moves.push([r + dir, c]);
+        if (r === startRow && !board[r + dir * 2][c]) moves.push([r + dir * 2, c]);
+      }
+      for (const dc of [-1, 1]) {
+        const nr = r + dir, nc = c + dc;
+        if (inBounds(nr, nc) && board[nr][nc] && board[nr][nc].color !== piece.color) moves.push([nr, nc]);
+      }
+      return moves;
+    }
+    case "n": {
+      const moves = [];
+      for (const [dr, dc] of KNIGHT_OFFSETS) {
+        const nr = r + dr, nc = c + dc;
+        if (inBounds(nr, nc) && (!board[nr][nc] || board[nr][nc].color !== piece.color)) moves.push([nr, nc]);
+      }
+      return moves;
+    }
+    case "b": return slideMoves(board, r, c, BISHOP_DIRS);
+    case "r": return slideMoves(board, r, c, ROOK_DIRS);
+    case "q": return slideMoves(board, r, c, QUEEN_DIRS);
+    case "k": {
+      const moves = [];
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        const nr = r + dr, nc = c + dc;
+        if (inBounds(nr, nc) && (!board[nr][nc] || board[nr][nc].color !== piece.color)) moves.push([nr, nc]);
+      }
+      return moves;
+    }
+  }
+  return [];
+}
+
+function findKing(board, color) {
+  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++)
+    if (board[r][c] && board[r][c].type === "k" && board[r][c].color === color) return [r, c];
+  return null;
+}
+
+function isSquareAttacked(board, r, c, byColor) {
+  for (let rr = 0; rr < 8; rr++) for (let cc = 0; cc < 8; cc++) {
+    const piece = board[rr][cc];
+    if (piece && piece.color === byColor) {
+      const moves = pseudoLegalMoves(board, rr, cc);
+      if (moves.some(([mr, mc]) => mr === r && mc === c)) return true;
+    }
+  }
+  return false;
+}
+
+function enemyColor(color) { return color === WHITE ? BLACK : WHITE; }
+
+function createGame() {
+  return { board: createInitialBoard(), turn: WHITE, enPassantTarget: null, moveLog: [], status: "ongoing", winner: null };
+}
+
+function getCastlingMoves(game, r, c) {
+  const board = game.board;
+  const king = board[r][c];
+  const moves = [];
+  if (king.moved) return moves;
+  const enemy = enemyColor(king.color);
+  if (isSquareAttacked(board, r, c, enemy)) return moves;
+  for (const [rookCol, step, targetCol] of [[7, 1, 6], [0, -1, 2]]) {
+    const rook = board[r][rookCol];
+    if (!rook || rook.type !== "r" || rook.color !== king.color || rook.moved) continue;
+    let clear = true;
+    for (let cc = c + step; cc !== rookCol; cc += step) { if (board[r][cc]) { clear = false; break; } }
+    if (!clear) continue;
+    let throughCheck = false;
+    for (const cc of [c + step, c + step * 2]) { if (isSquareAttacked(board, r, cc, enemy)) { throughCheck = true; break; } }
+    if (throughCheck) continue;
+    moves.push([r, targetCol]);
+  }
+  return moves;
+}
+
+function getEnPassantMoves(game, r, c) {
+  const board = game.board;
+  const pawn = board[r][c];
+  const moves = [];
+  if (!game.enPassantTarget) return moves;
+  const dir = pawn.color === WHITE ? -1 : 1;
+  const [tr, tc] = game.enPassantTarget;
+  if (tr === r + dir && Math.abs(tc - c) === 1) moves.push([tr, tc]);
+  return moves;
+}
+
+function moveLeavesKingInCheck(game, from, to) {
+  const trial = cloneBoard(game.board);
+  const [fr, fc] = from, [tr, tc] = to;
+  const piece = trial[fr][fc];
+  trial[tr][tc] = piece; trial[fr][fc] = null;
+  const kingPos = findKing(trial, piece.color);
+  if (!kingPos) return false;
+  return isSquareAttacked(trial, kingPos[0], kingPos[1], enemyColor(piece.color));
+}
+
+function getLegalMoves(game, r, c) {
+  const board = game.board;
+  const piece = board[r][c];
+  if (!piece || piece.color !== game.turn) return [];
+  let candidates = pseudoLegalMoves(board, r, c);
+  if (piece.type === "k") candidates = candidates.concat(getCastlingMoves(game, r, c));
+  if (piece.type === "p") candidates = candidates.concat(getEnPassantMoves(game, r, c));
+  return candidates.filter(([tr, tc]) => !moveLeavesKingInCheck(game, [r, c], [tr, tc]));
+}
+
+function hasAnyLegalMove(game, color) {
+  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+    const piece = game.board[r][c];
+    if (piece && piece.color === color && getLegalMoves(game, r, c).length > 0) return true;
+  }
+  return false;
+}
+
+function isInCheck(game, color) {
+  const kingPos = findKing(game.board, color);
+  return isSquareAttacked(game.board, kingPos[0], kingPos[1], enemyColor(color));
+}
+
+function makeMove(game, from, to, promotionType = "q") {
+  if (game.status !== "ongoing") return false;
+  const [fr, fc] = from, [tr, tc] = to;
+  const legal = getLegalMoves(game, fr, fc);
+  if (!legal.some(([r, c]) => r === tr && c === tc)) return false;
+
+  const board = game.board;
+  const piece = board[fr][fc];
+  const isCastling = piece.type === "k" && Math.abs(tc - fc) === 2;
+  const isEnPassant = piece.type === "p" && game.enPassantTarget &&
+    tr === game.enPassantTarget[0] && tc === game.enPassantTarget[1] && !board[tr][tc] && fc !== tc;
+
+  const capturedPiece = board[tr][tc];
+
+  board[tr][tc] = piece; board[fr][fc] = null; piece.moved = true;
+
+  if (isCastling) {
+    if (tc === 6) { board[fr][5] = board[fr][7]; board[fr][7] = null; if (board[fr][5]) board[fr][5].moved = true; }
+    else { board[fr][3] = board[fr][0]; board[fr][0] = null; if (board[fr][3]) board[fr][3].moved = true; }
+  }
+  if (isEnPassant) board[fr][tc] = null;
+
+  let promoted = false;
+  if (piece.type === "p" && (tr === 0 || tr === 7)) { piece.type = promotionType; promoted = true; }
+
+  if (piece.type === "p" && Math.abs(tr - fr) === 2) game.enPassantTarget = [(fr + tr) / 2, fc];
+  else game.enPassantTarget = null;
+
+  game.moveLog.push({ from, to, piece: { ...piece }, capturedPiece, isCastling, isEnPassant, promoted });
+  game.turn = enemyColor(game.turn);
+
+  const anyMove = hasAnyLegalMove(game, game.turn);
+  const check = isInCheck(game, game.turn);
+  if (!anyMove) { game.status = check ? "checkmate" : "stalemate"; game.winner = check ? enemyColor(game.turn) : null; }
+  else { game.status = "ongoing"; }
+
+  return true;
+}
+
+/* =========================================================
+   화면(UI) 코드 — 위 엔진 함수들만 사용, DOM 조작은 여기서만
+   ========================================================= */
+const GLYPH = {
+  w: { p: "♙", n: "♘", b: "♗", r: "♖", q: "♕", k: "♔" },
+  b: { p: "♟", n: "♞", b: "♝", r: "♜", q: "♛", k: "♚" },
+};
+const KOR_PIECE = { p: "폰", n: "나이트", b: "비숍", r: "룩", q: "퀸", k: "킹" };
+
+let game = createGame();
+let history = []; // 무르기용 스냅샷
+let selected = null; // [r, c] or null
+let lastMove = null;
+
+const boardEl = document.getElementById("board");
+const statusBar = document.getElementById("statusBar");
+const statusText = document.getElementById("statusText");
+const turnDot = document.getElementById("turnDot");
+const moveLogEl = document.getElementById("moveLog");
+const capturedByWhiteEl = document.getElementById("capturedByWhite"); // 백이 잡은 기물(흑 기물)
+const capturedByBlackEl = document.getElementById("capturedByBlack"); // 흑이 잡은 기물(백 기물)
+const fileCoordsEl = document.getElementById("fileCoords");
+const promoOverlay = document.getElementById("promoOverlay");
+const promoOptions = document.getElementById("promoOptions");
+const endOverlay = document.getElementById("endOverlay");
+
+"abcdefgh".split("").forEach((f) => {
+  const span = document.createElement("span");
+  span.textContent = f;
+  fileCoordsEl.appendChild(span);
+});
+
+function snapshot() {
+  return JSON.parse(JSON.stringify(game));
+}
+
+function algebraic([r, c]) {
+  return "abcdefgh"[c] + (8 - r);
+}
+
+function renderBoard() {
+  boardEl.innerHTML = "";
+  const legalTargets = selected ? getLegalMoves(game, selected[0], selected[1]) : [];
+
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const sq = document.createElement("div");
+      const isLight = (r + c) % 2 === 0;
+      sq.className = "sq " + (isLight ? "light" : "dark");
+      sq.dataset.r = r; sq.dataset.c = c;
+
+      if (lastMove && ((lastMove.from[0] === r && lastMove.from[1] === c) || (lastMove.to[0] === r && lastMove.to[1] === c))) {
+        sq.classList.add("last-move");
+      }
+      if (selected && selected[0] === r && selected[1] === c) sq.classList.add("selected");
+
+      const isTarget = legalTargets.some(([tr, tc]) => tr === r && tc === c);
+      if (isTarget) {
+        sq.classList.add(game.board[r][c] ? "legal-capture" : "legal-move");
+      }
+
+      const piece = game.board[r][c];
+      if (piece) {
+        const glyph = document.createElement("span");
+        glyph.className = "piece " + (piece.color === WHITE ? "white" : "black");
+        glyph.textContent = GLYPH[piece.color][piece.type];
+        sq.appendChild(glyph);
+      }
+
+      sq.addEventListener("click", () => onSquareClick(r, c));
+      boardEl.appendChild(sq);
+    }
+  }
+}
+
+function renderStatus() {
+  turnDot.className = "turn-dot" + (game.turn === BLACK ? " black" : "");
+  const turnLabel = game.turn === WHITE ? "백(White)" : "흑(Black)";
+  const check = game.status === "ongoing" && isInCheck(game, game.turn);
+
+  if (game.status === "checkmate") {
+    statusText.textContent = (game.winner === WHITE ? "백" : "흑") + " 승리 — 체크메이트";
+    statusBar.classList.add("check");
+  } else if (game.status === "stalemate") {
+    statusText.textContent = "스테일메이트 — 무승부";
+    statusBar.classList.remove("check");
+  } else if (check) {
+    statusText.textContent = turnLabel + " 차례 (체크!)";
+    statusBar.classList.add("check");
+  } else {
+    statusText.textContent = turnLabel + " 차례";
+    statusBar.classList.remove("check");
+  }
+}
+
+function renderCaptured() {
+  const byWhite = []; // 백이 잡은 것 = 흑 기물
+  const byBlack = []; // 흑이 잡은 것 = 백 기물
+  for (const m of game.moveLog) {
+    let capturedType = null, capturedColor = null;
+    if (m.isEnPassant) { capturedType = "p"; capturedColor = enemyColor(m.piece.color); }
+    else if (m.capturedPiece) { capturedType = m.capturedPiece.type; capturedColor = m.capturedPiece.color; }
+    if (capturedType) {
+      if (capturedColor === BLACK) byWhite.push(GLYPH.b[capturedType]);
+      else byBlack.push(GLYPH.w[capturedType]);
+    }
+  }
+  capturedByWhiteEl.innerHTML = byWhite.length
+    ? byWhite.map((g) => `<span class="piece-glyph">${g}</span>`).join("")
+    : "&nbsp;";
+  capturedByBlackEl.innerHTML = byBlack.length
+    ? byBlack.map((g) => `<span class="piece-glyph">${g}</span>`).join("")
+    : "&nbsp;";
+}
+
+function renderMoveLog() {
+  const lines = [];
+  for (let i = 0; i < game.moveLog.length; i += 2) {
+    const w = game.moveLog[i];
+    const b = game.moveLog[i + 1];
+    const num = i / 2 + 1;
+    const wStr = w ? `${algebraic(w.from)}${algebraic(w.to)}` : "";
+    const bStr = b ? `${algebraic(b.from)}${algebraic(b.to)}` : "";
+    lines.push(`<b>${num}.</b> ${wStr}  ${bStr}`);
+  }
+  moveLogEl.innerHTML = lines.join("<br/>") || "<span style='opacity:.6'>아직 둔 수가 없습니다</span>";
+  moveLogEl.scrollTop = moveLogEl.scrollHeight;
+}
+
+function renderAll() {
+  renderBoard();
+  renderStatus();
+  renderCaptured();
+  renderMoveLog();
+
+  if (game.status === "checkmate" || game.status === "stalemate") {
+    showEndOverlay();
+  }
+}
+
+function onSquareClick(r, c) {
+  if (game.status !== "ongoing") return;
+
+  const piece = game.board[r][c];
+
+  // 이미 선택된 기물이 있는 상태에서 클릭한 경우
+  if (selected) {
+    const [sr, sc] = selected;
+    const legal = getLegalMoves(game, sr, sc);
+    const isLegalTarget = legal.some(([tr, tc]) => tr === r && tc === c);
+
+    if (isLegalTarget) {
+      const movingPiece = game.board[sr][sc];
+      const isPromotion = movingPiece.type === "p" && (r === 0 || r === 7);
+      if (isPromotion) {
+        askPromotion((chosenType) => {
+          history.push(snapshot());
+          makeMove(game, [sr, sc], [r, c], chosenType);
+          lastMove = { from: [sr, sc], to: [r, c] };
+          selected = null;
+          renderAll();
+        });
+        return;
+      }
+      history.push(snapshot());
+      makeMove(game, [sr, sc], [r, c]);
+      lastMove = { from: [sr, sc], to: [r, c] };
+      selected = null;
+      renderAll();
+      return;
+    }
+
+    // 같은 편 다른 기물을 클릭 -> 재선택
+    if (piece && piece.color === game.turn) {
+      selected = [r, c];
+      renderBoard();
+      return;
+    }
+
+    // 그 외 -> 선택 해제
+    selected = null;
+    renderBoard();
+    return;
+  }
+
+  // 아직 아무것도 선택 안 된 상태
+  if (piece && piece.color === game.turn) {
+    selected = [r, c];
+    renderBoard();
+  }
+}
+
+function askPromotion(callback) {
+  promoOptions.innerHTML = "";
+  const color = game.turn;
+  ["q", "r", "b", "n"].forEach((type) => {
+    const btn = document.createElement("button");
+    btn.textContent = GLYPH[color][type];
+    btn.title = KOR_PIECE[type];
+    btn.addEventListener("click", () => {
+      promoOverlay.classList.remove("show");
+      callback(type);
+    });
+    promoOptions.appendChild(btn);
+  });
+  promoOverlay.classList.add("show");
+}
+
+function showEndOverlay() {
+  const title = document.getElementById("endTitle");
+  const desc = document.getElementById("endDesc");
+  if (game.status === "checkmate") {
+    title.textContent = (game.winner === WHITE ? "백" : "흑") + " 승리!";
+    desc.textContent = "체크메이트로 게임이 종료되었습니다.";
+  } else {
+    title.textContent = "무승부";
+    desc.textContent = "스테일메이트로 게임이 종료되었습니다.";
+  }
+  endOverlay.classList.add("show");
+}
+
+function newGame() {
+  game = createGame();
+  history = [];
+  selected = null;
+  lastMove = null;
+  endOverlay.classList.remove("show");
+  renderAll();
+}
+
+document.getElementById("newGameBtn").addEventListener("click", newGame);
+document.getElementById("endNewGameBtn").addEventListener("click", newGame);
+document.getElementById("undoBtn").addEventListener("click", () => {
+  if (history.length === 0) return;
+  game = history.pop();
+  selected = null;
+  lastMove = null;
+  endOverlay.classList.remove("show");
+  renderAll();
+});
+
+renderAll();
+</script>
+</body>
+</html>
